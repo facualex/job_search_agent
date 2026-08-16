@@ -1,0 +1,45 @@
+name: Daily Job Search
+
+on:
+  schedule:
+    # 08:00 hora de Chile (UTC-4 en horario de verano / UTC-3 en invierno).
+    # Ajustá si querés otra hora. Cron corre en UTC -> 12:00 UTC ≈ 08:00 Chile.
+    - cron: "0 12 * * 1-5"  # lunes a viernes
+  workflow_dispatch: {}  # permite correrlo manualmente desde la pestaña Actions
+
+permissions:
+  contents: write  # necesario para poder commitear seen_jobs.json de vuelta
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Correr agente
+        working-directory: src
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python main.py
+
+      - name: Guardar estado (seen_jobs.json)
+        run: |
+          git config user.name "job-search-agent-bot"
+          git config user.email "actions@github.com"
+          git add src/seen_jobs.json
+          git diff --staged --quiet || git commit -m "chore: actualizar ofertas vistas [skip ci]"
+          git push
