@@ -3,8 +3,8 @@ name: Daily Job Search
 on:
   schedule:
     # 08:00 hora de Chile (UTC-4 en horario de verano / UTC-3 en invierno).
-    # Ajustá si querés otra hora. Cron corre en UTC -> 12:00 UTC ≈ 08:00 Chile.
-    - cron: "0 12 * * 1-5"  # lunes a viernes
+    # Ajusta si quieres otra hora. Cron corre en UTC -> 12:00 UTC ≈ 08:00 Chile.
+    - cron: "0 12 * * *"  # todos los días, incluidos fines de semana
   workflow_dispatch: {}  # permite correrlo manualmente desde la pestaña Actions
 
 permissions:

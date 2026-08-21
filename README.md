@@ -53,7 +53,7 @@ EMAIL_TO
 ### 4. Activa el workflow
 
 El archivo `.github/workflows/daily-job-search.yml` ya está configurado para
-correr de lunes a viernes a las 08:00 hora de Chile aprox. (ajusta el cron si
+correr todos los días a las 08:00 hora de Chile aprox. (ajusta el cron si
 quieres otro horario — está en UTC).
 
 También se puede ejecutar manualmente: pestaña **Actions** → "Daily Job Search" →
