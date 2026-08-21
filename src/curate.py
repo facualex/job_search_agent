@@ -1,14 +1,13 @@
 """
-Usa la API de Anthropic para evaluar las ofertas crudas contra el perfil del
-candidato y elegir las DAILY_PICKS mejores, con una justificación breve para
-cada una. Nunca envía ni postula nada — solo curación y explicación.
+Usa un LLM (proveedor configurable, ver llm_client.py) para evaluar las
+ofertas crudas contra el perfil del candidato y elegir las DAILY_PICKS
+mejores, con una justificación breve para cada una. Nunca envía ni postula
+nada — solo curación y explicación.
 """
 import json
 import os
-import anthropic
 from config import CANDIDATE_PROFILE, DAILY_PICKS
-
-MODEL = "claude-sonnet-5"  # ajustar si querés otro modelo
+from llm_client import complete
 
 
 def _build_prompt(jobs: list) -> str:
@@ -69,24 +68,11 @@ def curate(jobs: list) -> list:
     if not jobs:
         return []
 
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     prompt = _build_prompt(jobs)
     print(f"[curate] tamaño del prompt: {len(prompt)} caracteres, {len(jobs)} ofertas")
 
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=4000,
-        thinking={"type": "disabled"},
-        messages=[{"role": "user", "content": prompt}],
-    )
+    raw_text = complete(prompt, max_tokens=4000)
 
-    print(f"[curate] stop_reason={resp.stop_reason} | bloques de contenido={len(resp.content)}")
-    for i, block in enumerate(resp.content):
-        block_type = getattr(block, "type", type(block).__name__)
-        print(f"[curate]   bloque {i}: type={block_type}")
-
-    raw_text = "".join(block.text for block in resp.content if hasattr(block, "text"))
-    raw_text = raw_text.strip()
     # por si el modelo igual envuelve en ```json ... ```
     if raw_text.startswith("```"):
         raw_text = raw_text.strip("`")

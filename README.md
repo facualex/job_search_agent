@@ -1,8 +1,9 @@
 # Agente de búsqueda de empleo
 
 Busca ofertas de Data Engineer / Analytics Engineer en varias fuentes, las filtra
-con Claude según tu perfil y criterios, y te manda por email las mejores del día
-(por defecto 3, puede ser menos si no hay suficiente calidad).
+con un LLM (Claude o DeepSeek, configurable) según tu perfil y criterios, y te
+manda por email las mejores del día (por defecto 3, puede ser menos si no hay
+suficiente calidad).
 
 **No postula automáticamente a nada.** Solo te informa para que revises y postules vos.
 
@@ -24,7 +25,9 @@ Subí esta carpeta a un repo nuevo (puede ser privado) en tu cuenta de GitHub.
 
 ### 2. Conseguí las credenciales necesarias
 
-- **ANTHROPIC_API_KEY**: desde [console.anthropic.com](https://console.anthropic.com/settings/keys)
+- **API key del LLM** — solo necesitás la del proveedor que vayas a usar:
+  - Anthropic (Claude): **ANTHROPIC_API_KEY** desde [console.anthropic.com](https://console.anthropic.com/settings/keys)
+  - DeepSeek: **DEEPSEEK_API_KEY** desde [platform.deepseek.com](https://platform.deepseek.com/api_keys)
 - **Credenciales SMTP** para enviar el email. La opción más simple es Gmail:
   1. Activá verificación en 2 pasos en tu cuenta de Google
   2. Generá una "contraseña de aplicación" en https://myaccount.google.com/apppasswords
@@ -33,10 +36,13 @@ Subí esta carpeta a un repo nuevo (puede ser privado) en tu cuenta de GitHub.
 ### 3. Configurá los Secrets en GitHub
 
 En tu repo: **Settings → Secrets and variables → Actions → New repository secret**.
-Agregá estos 6:
+Agregá `LLM_PROVIDER` (`anthropic` o `deepseek`), la API key del proveedor elegido,
+y los 5 de SMTP/email:
 
 ```
-ANTHROPIC_API_KEY
+LLM_PROVIDER
+ANTHROPIC_API_KEY   # si LLM_PROVIDER=anthropic
+DEEPSEEK_API_KEY    # si LLM_PROVIDER=deepseek
 SMTP_HOST
 SMTP_PORT
 SMTP_USER
@@ -75,6 +81,15 @@ Todo el criterio de selección vive en dos lugares:
 
 Editá el texto de `CANDIDATE_PROFILE` cuando cambien tus prioridades (por
 ejemplo, si en el futuro considerás roles de AI Engineer).
+
+## Cambiar de proveedor de LLM
+
+El proveedor se elige con la variable de entorno `LLM_PROVIDER` (`anthropic` o
+`deepseek`, default `anthropic`). Solo hace falta la API key del proveedor
+elegido. Opcionalmente `LLM_MODEL` fuerza un modelo específico; si no se
+define, se usa el default de cada proveedor (`claude-sonnet-5` /
+`deepseek-chat`). La lógica vive en `src/llm_client.py` — para agregar otro
+proveedor, sumá una entrada en `PROVIDERS` y su función `_complete_<nombre>`.
 
 ## Cómo evita repetir ofertas
 
