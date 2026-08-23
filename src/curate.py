@@ -6,7 +6,7 @@ nada — solo curación y explicación.
 """
 import json
 import os
-from config import CANDIDATE_PROFILE, DAILY_PICKS
+from config import CANDIDATE_PROFILE, DAILY_PICKS, MIN_FIT_SCORE
 from llm_client import complete
 
 
@@ -21,7 +21,8 @@ def _build_prompt(jobs: list) -> str:
                 "remote": j["remote"],
                 "source": j["source"],
                 "tags": j.get("tags", []),
-                "description_snippet": (j.get("description") or "")[:800],
+                "salary": j.get("salary") or "no especificado",
+                "description": j.get("description") or "",
             }
             for i, j in enumerate(jobs)
         ],
@@ -64,7 +65,8 @@ Respondé EXCLUSIVAMENTE con un JSON válido (sin texto adicional, sin markdown)
 
 def curate(jobs: list) -> list:
     """Devuelve una lista de dicts: cada uno es una oferta original enriquecida
-    con fit_score, why y flags. Longitud <= DAILY_PICKS."""
+    con fit_score, why y flags. Longitud <= DAILY_PICKS. Descarta picks con
+    fit_score inválido o menor a MIN_FIT_SCORE, aunque eso deje la lista corta."""
     if not jobs:
         return []
 
@@ -96,8 +98,17 @@ def curate(jobs: list) -> list:
         idx = p.get("index")
         if idx is None or not (0 <= idx < len(jobs)):
             continue
+
+        fit_score = p.get("fit_score")
+        if not isinstance(fit_score, int) or not (1 <= fit_score <= 10):
+            print(f"[curate] descartado index={idx}: fit_score inválido ({fit_score!r})")
+            continue
+        if fit_score < MIN_FIT_SCORE:
+            print(f"[curate] descartado index={idx}: fit_score={fit_score} < MIN_FIT_SCORE={MIN_FIT_SCORE}")
+            continue
+
         enriched = dict(jobs[idx])
-        enriched["fit_score"] = p.get("fit_score")
+        enriched["fit_score"] = fit_score
         enriched["why"] = p.get("why", "")
         enriched["flags"] = p.get("flags", "")
         picks.append(enriched)

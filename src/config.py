@@ -56,6 +56,11 @@ SEARCH_KEYWORDS = [
 # --- Cuántas ofertas curadas se envían por día ---
 DAILY_PICKS = 3
 
+# --- fit_score mínimo (1-10, autoasignado por el LLM) para que una oferta
+# se incluya en el email. Ofertas con score menor o inválido se descartan
+# en vez de rellenar el cupo con matches mediocres. ---
+MIN_FIT_SCORE = 6
+
 # --- Cuántas ofertas crudas (pre-filtro LLM) se piden a cada fuente por keyword/categoría ---
 RAW_FETCH_LIMIT = 100
 

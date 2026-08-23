@@ -5,7 +5,7 @@ Obtiene ofertas de trabajo crudas desde varias fuentes públicas:
 - Get on Board (Chile/LATAM, remoto e híbrido)
 
 Cada función devuelve una lista de dicts normalizados con las mismas claves:
-    title, company, location, remote, url, description, source, tags
+    title, company, location, remote, url, description, source, tags, salary
 """
 import time
 import json
@@ -73,6 +73,7 @@ def fetch_remotive():
                 "description": (j.get("description") or "")[:3000],
                 "source": "Remotive",
                 "tags": j.get("tags", []),
+                "salary": j.get("salary") or "",
             })
         time.sleep(0.5)
     return jobs
@@ -97,6 +98,7 @@ def fetch_arbeitnow():
             "description": (j.get("description") or "")[:3000],
             "source": "Arbeitnow",
             "tags": j.get("tags", []),
+            "salary": j.get("salary") or "",
         })
     return jobs
 
@@ -160,6 +162,7 @@ def fetch_getonbrd():
                 "description": (attrs.get("description") or attrs.get("functions") or "")[:3000],
                 "source": "GetOnBrd",
                 "tags": [],
+                "salary": attrs.get("salary") or "",
             })
         time.sleep(0.5)
     return jobs
