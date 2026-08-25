@@ -3,6 +3,8 @@ Obtiene ofertas de trabajo crudas desde varias fuentes públicas:
 - Remotive (remoto global/USA)
 - Arbeitnow (remoto global/Europa, incluye muchas ofertas USA-friendly)
 - Get on Board (Chile/LATAM, remoto e híbrido)
+- Himalayas (remoto global, empresas verificadas, salario estructurado)
+- Vacantes Digitales (LATAM tech, agrega desde LinkedIn y otras fuentes)
 
 Cada función devuelve una lista de dicts normalizados con las mismas claves:
     title, company, location, remote, url, description, source, tags, salary
@@ -168,10 +170,102 @@ def fetch_getonbrd():
     return jobs
 
 
+def fetch_himalayas():
+    """Ofertas remotas globales vía Himalayas — empresas verificadas y
+    salario estructurado (minSalary/maxSalary/currency) cuando la empresa
+    lo publica.
+
+    Importante: el endpoint es /jobs/api/search, NO /jobs/api (sin
+    "/search") — ese segundo endpoint ignora los parámetros de query y
+    siempre devuelve el firehose general sin filtrar (se comprobó
+    empíricamente). El parámetro "q" ya filtra razonablemente bien del
+    lado del servidor; igual se aplica _title_matches como red de
+    seguridad, igual que con el resto de las fuentes.
+    """
+    jobs = []
+    seen_urls_this_fetch = set()
+    for kw in SEARCH_KEYWORDS:
+        data = _safe_get(
+            "https://himalayas.app/jobs/api/search",
+            params={"q": kw},
+        )
+        if not data:
+            continue
+        for j in data.get("jobs", []):
+            title = j.get("title") or ""
+            if not _title_matches(title, kw):
+                continue
+            url = j.get("applicationLink") or j.get("guid")
+            if not url or url in seen_urls_this_fetch:
+                continue
+            seen_urls_this_fetch.add(url)
+
+            min_s, max_s, currency = j.get("minSalary"), j.get("maxSalary"), j.get("currency")
+            salary = f"{min_s}-{max_s} {currency}" if min_s and max_s else ""
+
+            locations = j.get("locationRestrictions") or []
+            jobs.append({
+                "title": title,
+                "company": j.get("companyName"),
+                "location": ", ".join(locations) if locations else "Remoto",
+                "remote": True,
+                "url": url,
+                "description": (j.get("description") or j.get("excerpt") or "")[:3000],
+                "source": "Himalayas",
+                "tags": j.get("categories", []),
+                "salary": salary,
+            })
+        time.sleep(0.5)
+    return jobs
+
+
+def fetch_vacantesdigitales():
+    """Ofertas de tecnología en LATAM vía Vacantes Digitales. Agrega
+    publicaciones desde LinkedIn y otras fuentes con contenido reescrito;
+    el `url`/apply_url puede apuntar a un post de LinkedIn en vez de a la
+    página propia de la empresa. No expone un campo de salario estructurado.
+    """
+    jobs = []
+    for kw in SEARCH_KEYWORDS:
+        data = _safe_get(
+            "https://vacantesdigitales.com/api/search",
+            params={"q": kw},
+        )
+        if not data:
+            continue
+        for j in data.get("data", []):
+            title = j.get("title") or ""
+            if not _title_matches(title, kw):
+                continue
+
+            company = (j.get("company") or {}).get("name") or "Empresa no especificada"
+            location_type = (j.get("location_type") or "").lower()
+            title_lower = title.lower()
+            is_remote = (
+                location_type == "remote"
+                or "remoto" in title_lower
+                or "remote" in title_lower
+            )
+            location = j.get("address_locality") or j.get("address_country") or "LATAM"
+
+            jobs.append({
+                "title": title,
+                "company": company,
+                "location": location,
+                "remote": is_remote,
+                "url": j.get("url"),
+                "description": (j.get("content") or j.get("summary") or "")[:3000],
+                "source": "VacantesDigitales",
+                "tags": j.get("skills", []),
+                "salary": "",
+            })
+    return jobs
+
+
 def fetch_all():
     """Junta todas las fuentes. Si una falla, sigue con las demás."""
     all_jobs = []
-    for fetcher in (fetch_remotive, fetch_arbeitnow, fetch_getonbrd):
+    for fetcher in (fetch_remotive, fetch_arbeitnow, fetch_getonbrd, fetch_himalayas, fetch_vacantesdigitales):
         try:
             found = fetcher()
             print(f"[fetch_jobs] {fetcher.__name__}: {len(found)} ofertas")
