@@ -181,6 +181,15 @@ def fetch_himalayas():
     empíricamente). El parámetro "q" ya filtra razonablemente bien del
     lado del servidor; igual se aplica _title_matches como red de
     seguridad, igual que con el resto de las fuentes.
+
+    La API no tiene un booleano "remote" explícito (todo en Himalayas es
+    remoto por definición), pero sí expone `locationRestrictions`: la
+    lista de países donde el postulante debe estar habilitado para
+    trabajar (ej. ["United States"] en ofertas que en el anuncio dicen
+    literalmente "United States Only"). Si esa lista no está vacía y no
+    incluye Chile, la oferta no aplica al perfil (ver TIPOS DE POSICIÓN
+    ACEPTADOS en CANDIDATE_PROFILE) y se descarta acá, antes de llegar al
+    LLM o a la notificación.
     """
     jobs = []
     seen_urls_this_fetch = set()
@@ -198,12 +207,16 @@ def fetch_himalayas():
             url = j.get("applicationLink") or j.get("guid")
             if not url or url in seen_urls_this_fetch:
                 continue
+
+            locations = j.get("locationRestrictions") or []
+            if locations and not any(loc.strip().lower() == "chile" for loc in locations):
+                continue
+
             seen_urls_this_fetch.add(url)
 
             min_s, max_s, currency = j.get("minSalary"), j.get("maxSalary"), j.get("currency")
             salary = f"{min_s}-{max_s} {currency}" if min_s and max_s else ""
 
-            locations = j.get("locationRestrictions") or []
             jobs.append({
                 "title": title,
                 "company": j.get("companyName"),
