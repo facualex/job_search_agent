@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write  # necesario para poder commitear seen_jobs.json de vuelta
 
+# Evita dos corridas en paralelo (ej. cron + manual) que se pisen el estado.
+concurrency:
+  group: daily-job-search
+  cancel-in-progress: false
+
 jobs:
   run-agent:
     runs-on: ubuntu-latest
@@ -46,5 +51,9 @@ jobs:
           git config user.name "job-search-agent-bot"
           git config user.email "actions@github.com"
           git add src/seen_jobs.json
-          git diff --staged --quiet || git commit -m "chore: actualizar ofertas vistas [skip ci]"
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: actualizar ofertas vistas [skip ci]"
+          # Puede haber commits nuevos en main desde el checkout (ej. un push
+          # manual mientras corría el agente): se rebasa encima antes de pushear.
+          git pull --rebase origin main
           git push
