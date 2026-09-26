@@ -37,7 +37,7 @@ Sube esta carpeta a un repositorio nuevo (puede ser privado) en tu cuenta de Git
 
 En el repositorio: **Settings → Secrets and variables → Actions → New repository secret**.
 Agrega `LLM_PROVIDER` (`anthropic` o `deepseek`), la API key del proveedor elegido,
-y los 5 de SMTP/email:
+los 5 de SMTP/email y los de búsqueda:
 
 ```
 LLM_PROVIDER
@@ -48,6 +48,9 @@ SMTP_PORT
 SMTP_USER
 SMTP_PASS
 EMAIL_TO
+JOB_SEARCH_PROFILE  # contenido completo de tu profile.md (ver "Ajustar criterios")
+SEARCH_KEYWORDS     # ej: data engineer,analytics engineer
+ALLOWED_COUNTRIES   # ej: Chile (opcional; vacío = no filtrar por país)
 ```
 
 ### 4. Activa el workflow
@@ -66,21 +69,34 @@ cd agente-busqueda-empleo
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env  # y completa los valores
+cp profile.example.md profile.md  # y completa tu perfil de búsqueda
 cd src
-export $(cat ../.env | xargs)  # carga las variables de entorno
+set -a; source ../.env; set +a  # carga las variables de entorno
 python main.py
 ```
 
 ## Ajustar criterios
 
-Todo el criterio de selección vive en dos lugares:
+El criterio de búsqueda es configuración privada de cada usuario y **no vive en
+el repositorio**:
 
-- `src/config.py` → `CANDIDATE_PROFILE`, `SEARCH_KEYWORDS`, `DAILY_PICKS`
-- `src/curate.py` → el prompt que se le envía al modelo (reglas de descarte,
-  prioridades de stack, etc.)
+- **Perfil + criterios de evaluación** (stack objetivo, señales positivas,
+  exclusiones duras, tipos de posición aceptados, cómo puntuar cada subcriterio):
+  un texto libre que se inserta en el prompt del modelo. Se lee de la variable
+  `JOB_SEARCH_PROFILE` si está definida (así se usa en GitHub Actions, como
+  Secret multilínea), o si no del archivo `profile.md` en la raíz del repo
+  (ignorado por git; se puede cambiar la ruta con `JOB_SEARCH_PROFILE_FILE`).
+  Usá `profile.example.md` como plantilla.
+- **`SEARCH_KEYWORDS`**: roles a buscar en las APIs, separados por coma.
+- **`ALLOWED_COUNTRIES`**: países donde podés trabajar; descarta antes del LLM
+  las ofertas restringidas a otros países.
 
-Edita el texto de `CANDIDATE_PROFILE` cuando cambien tus prioridades (por
-ejemplo, si en el futuro se consideran roles de AI Engineer).
+Cuando cambien tus prioridades, editá tu `profile.md` y actualizá el Secret
+`JOB_SEARCH_PROFILE` con el mismo contenido.
+
+En el código (`src/config.py`, `src/curate.py`) solo quedan los parámetros
+genéricos (`DAILY_PICKS`, `MIN_FIT_SCORE`, pesos de los subcriterios) y la
+estructura del prompt.
 
 ## Cambiar de proveedor de LLM
 

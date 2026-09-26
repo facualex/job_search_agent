@@ -36,6 +36,9 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          JOB_SEARCH_PROFILE: ${{ secrets.JOB_SEARCH_PROFILE }}
+          SEARCH_KEYWORDS: ${{ secrets.SEARCH_KEYWORDS }}
+          ALLOWED_COUNTRIES: ${{ secrets.ALLOWED_COUNTRIES }}
         run: python main.py
 
       - name: Guardar estado (seen_jobs.json)

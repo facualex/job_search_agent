@@ -13,7 +13,7 @@ import time
 import json
 import os
 import requests
-from config import SEARCH_KEYWORDS, RAW_FETCH_LIMIT
+from config import SEARCH_KEYWORDS, ALLOWED_COUNTRIES, RAW_FETCH_LIMIT
 
 HEADERS = {"User-Agent": "job-search-agent/1.0 (personal use)"}
 TIMEOUT = 20
@@ -187,9 +187,8 @@ def fetch_himalayas():
     lista de países donde el postulante debe estar habilitado para
     trabajar (ej. ["United States"] en ofertas que en el anuncio dicen
     literalmente "United States Only"). Si esa lista no está vacía y no
-    incluye Chile, la oferta no aplica al perfil (ver TIPOS DE POSICIÓN
-    ACEPTADOS en CANDIDATE_PROFILE) y se descarta acá, antes de llegar al
-    LLM o a la notificación.
+    incluye ninguno de ALLOWED_COUNTRIES, la oferta no aplica al perfil y
+    se descarta acá, antes de llegar al LLM o a la notificación.
     """
     jobs = []
     seen_urls_this_fetch = set()
@@ -209,7 +208,11 @@ def fetch_himalayas():
                 continue
 
             locations = j.get("locationRestrictions") or []
-            if locations and not any(loc.strip().lower() == "chile" for loc in locations):
+            if (
+                ALLOWED_COUNTRIES
+                and locations
+                and not any(loc.strip().lower() in ALLOWED_COUNTRIES for loc in locations)
+            ):
                 continue
 
             seen_urls_this_fetch.add(url)
@@ -277,6 +280,8 @@ def fetch_vacantesdigitales():
 
 def fetch_all():
     """Junta todas las fuentes. Si una falla, sigue con las demás."""
+    if not SEARCH_KEYWORDS:
+        raise RuntimeError("SEARCH_KEYWORDS está vacío: definí los roles a buscar, separados por coma.")
     all_jobs = []
     for fetcher in (fetch_remotive, fetch_arbeitnow, fetch_getonbrd, fetch_himalayas, fetch_vacantesdigitales):
         try:

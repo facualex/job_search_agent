@@ -9,12 +9,12 @@ nada — solo curación y explicación.
 """
 import json
 import os
-from config import CANDIDATE_PROFILE, DAILY_PICKS, MIN_FIT_SCORE
+from config import DAILY_PICKS, MIN_FIT_SCORE, load_candidate_profile
 from llm_client import complete
 
 # Pesos de los subcriterios sobre los que se calcula fit_score en código
 # (no se confía en que el LLM haga la cuenta). Reflejan el orden de
-# prioridad implícito en CANDIDATE_PROFILE: stack > seniority > tipo de
+# prioridad habitual del perfil de búsqueda: stack > seniority > tipo de
 # oferta/compensación > literalidad del rol. Deben sumar 1.0.
 _SUBSCORE_WEIGHTS = {
     "stack_fit": 0.40,
@@ -68,40 +68,20 @@ def _build_prompt(jobs: list) -> str:
     return f"""Sos un asistente de búsqueda de empleo muy exigente y honesto. Tu tarea es
 elegir, de una lista de ofertas crudas, las {DAILY_PICKS} MEJORES para este candidato.
 
-PERFIL DEL CANDIDATO:
-{CANDIDATE_PROFILE}
+PERFIL Y CRITERIOS DEL CANDIDATO:
+{load_candidate_profile()}
 
-CRITERIOS DE PUNTAJE (asigná cada uno de 1 a 10, siendo honesto y exigente):
-- stack_fit: qué tan cloud-native es el stack de la oferta vs. legado (dbt, Airflow
-  gestionado, Spark, Snowflake/BigQuery, AWS/Azure/GCP, Terraform = alto; NiFi,
-  PowerCenter, ETL bancario on-prem = bajo).
-- seniority_fit: qué tan bien calza el nivel pedido con un perfil mid-level de ~2 años
-  (explícito "2-4 años" o similar = alto; junior/trainee = bajísimo; pide 5+ años duros
-  sin señal de valorar potencial = bajo).
-- role_fit: si el trabajo real es ingeniería de pipelines de datos (alto) vs. DBA,
-  soporte de BI, analista de reportes, o Data Scientist/ML Engineer centrado en
-  modelado (bajo), aunque el título diga "Data Engineer".
-- offer_fit: tipo de posición según TIPOS DE POSICIÓN ACEPTADOS del perfil (100% remoto
-  para empresa de USA en USD, o remoto/híbrido en Chile = base alta; cualquier otra
-  modalidad = base baja).
-  IMPORTANTE sobre salario: la mayoría de las ofertas NO especifican salario — si no lo
-  especifica, NO lo penalices, evaluá offer_fit solo por tipo de posición y tratá la
-  falta de dato como neutral. Si SÍ especifica salario y es competitivo/transparente,
-  sumá hasta 2 puntos extra sobre esa base (sin pasar de 10). Si SÍ especifica salario y
-  está claramente por debajo de mercado (especialmente en Chile), bajalo.
+CÓMO PUNTUAR (asigná cada subcriterio de 1 a 10, siendo honesto y exigente, aplicando
+las definiciones y señales del perfil de arriba):
+- stack_fit: qué tan bien calza el stack técnico de la oferta con el stack objetivo.
+- seniority_fit: qué tan bien calza el nivel pedido con la experiencia del candidato.
+- role_fit: si el trabajo real (no solo el título) corresponde al rol buscado.
+- offer_fit: tipo de posición, modalidad y compensación según lo aceptado en el perfil.
+  Si la oferta no especifica salario, tratalo como neutral (no lo penalices).
 
-EXCLUSIÓN DURA — marcá "hard_exclusion": true si aplica CUALQUIERA de estas, sin
-importar los subscores:
-- Junior/trainee/entry-level, aunque el título diga "Data Engineer".
-- Rol bancario/financiero con stack on-prem tradicional, salvo compensación o empresa
-  excepcional.
-- Es en realidad DBA, soporte de BI o analista de reportes, no ingeniería de pipelines.
-- Pide 5+ años duros de experiencia en el stack cloud objetivo sin señal de valorar
-  potencial/portfolio.
-- Modalidad fuera de TIPOS DE POSICIÓN ACEPTADOS: presencial (sin opción remota) en
-  cualquier país, o híbrido/remoto en un país que no sea Chile y la empresa no sea de
-  USA. Esto aplica aunque el stack y el rol sean un fit excelente — la modalidad es un
-  requisito duro, no un matiz a promediar con el resto.
+EXCLUSIÓN DURA — marcá "hard_exclusion": true si aplica CUALQUIERA de las exclusiones
+duras del perfil, sin importar los subscores. Los requisitos duros (ej. modalidad) no
+son un matiz a promediar con el resto.
 
 Si hay menos de {DAILY_PICKS} ofertas que realmente valgan la pena, devolvé menos —
 NUNCA rellenes con ofertas mediocres solo para completar el cupo.
